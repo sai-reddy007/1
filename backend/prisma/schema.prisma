@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLATFORM_ADMIN
+  ORG_ADMIN
+  SECURITY_CONSULTANT
+  DEVELOPER
+  CLIENT_USER
+  AUDITOR
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum RemediationStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  ACCEPTED_RISK
+}
+
+enum ServiceType {
+  WEB_APP_PENTEST
+  API_SECURITY_ASSESSMENT
+  NETWORK_PENTEST
+  CLOUD_SECURITY_ASSESSMENT
+  RED_TEAM_ENGAGEMENT
+}
+
+model Organization {
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  createdAt       DateTime         @default(now())
+  users           User[]
+  projects        Project[]
+  reports         Report[]
+  assets          Asset[]
+  vulnerabilities Vulnerability[]
+  serviceRequests ServiceRequest[]
+  auditLogs       AuditLog[]
+}
+
+model User {
+  id             String        @id @default(cuid())
+  email          String        @unique
+  passwordHash   String
+  name           String
+  role           Role
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime      @default(now())
+  auditLogs      AuditLog[]
+  assignedTickets Ticket[]     @relation("TicketAssignee")
+}
+
+model Project {
+  id             String          @id @default(cuid())
+  name           String
+  description    String
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  reports        Report[]
+  vulnerabilities Vulnerability[]
+  createdAt      DateTime        @default(now())
+}
+
+model Report {
+  id             String         @id @default(cuid())
+  filename       String
+  sourceTool     String
+  format         String
+  status         String         @default("PROCESSED")
+  projectId      String
+  organizationId String
+  project        Project        @relation(fields: [projectId], references: [id])
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  vulnerabilities Vulnerability[]
+  createdAt      DateTime       @default(now())
+}
+
+model Asset {
+  id             String          @id @default(cuid())
+  name           String
+  type           String
+  criticality    Int             @default(3)
+  exposureLevel  Int             @default(3)
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  vulnerabilities Vulnerability[]
+
+  @@unique([organizationId, name])
+}
+
+model Vulnerability {
+  id               String         @id @default(cuid())
+  vulnerabilityName String
+  normalizedName   String
+  severity         Severity
+  cvssScore        Float?
+  cve              String?
+  cwe              String?
+  owaspCategory    String?
+  mitreTechnique   String?
+  capecPattern     String?
+  description      String
+  affectedEndpoint String?
+  evidence         String
+  remediation      String
+  references       String
+  riskScore        Int
+  status           RemediationStatus @default(OPEN)
+  organizationId   String
+  projectId        String
+  reportId         String?
+  assetId          String?
+  organization     Organization   @relation(fields: [organizationId], references: [id])
+  project          Project        @relation(fields: [projectId], references: [id])
+  report           Report?        @relation(fields: [reportId], references: [id])
+  asset            Asset?         @relation(fields: [assetId], references: [id])
+  remediationItems Remediation[]
+  tickets          Ticket[]
+  createdAt        DateTime       @default(now())
+}
+
+model Remediation {
+  id               String            @id @default(cuid())
+  vulnerabilityId  String
+  owner            String
+  dueDate          DateTime
+  status           RemediationStatus @default(OPEN)
+  notes            String
+  vulnerability    Vulnerability     @relation(fields: [vulnerabilityId], references: [id])
+}
+
+model Ticket {
+  id               String            @id @default(cuid())
+  jiraKey          String
+  vulnerabilityId  String
+  assigneeId       String?
+  status           RemediationStatus @default(OPEN)
+  vulnerability    Vulnerability     @relation(fields: [vulnerabilityId], references: [id])
+  assignee         User?             @relation("TicketAssignee", fields: [assigneeId], references: [id])
+}
+
+model ServiceRequest {
+  id              String      @id @default(cuid())
+  serviceType     ServiceType
+  notes           String
+  status          String      @default("REQUESTED")
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  action         String
+  metadata       String
+  userId         String?
+  organizationId String?
+  createdAt      DateTime      @default(now())
+  user           User?         @relation(fields: [userId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+}

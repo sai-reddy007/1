@@ -1,0 +1,16 @@
+{
+  "name": "pentest-ai",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "echo 'Run npm run dev -w backend and npm run dev -w frontend in separate terminals'",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "seed": "npm run seed -w backend",
+    "docker:up": "cp backend/.env.docker.example backend/.env.docker && docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v"
+  }
+}
